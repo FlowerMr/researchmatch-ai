@@ -4,16 +4,14 @@ from langgraph.graph import StateGraph, END
 
 from agent.cv_agent import analyze_cv
 from agent.position_agent import analyze_position
-from agent.professor_agent import analyze_professor
 from agent.recommendation_agent import generate_recommendation
-
 from agent.critic_agent import critique_application
 from agent.report_agent import generate_report
+from agent.storage_agent import save_report
 
 from ml.match_engine import calculate_match
 from ml.gap_analyzer import analyze_gap
 from ml.professor_match import calculate_professor_match
-from agent.storage_agent import save_report
 
 
 # =========================
@@ -36,7 +34,6 @@ class WorkflowState(TypedDict):
     gap_analysis: dict
 
     recommendation: str
-
     critique: str
 
     report: dict
@@ -54,13 +51,6 @@ def cv_node(state):
 
     return state
 
-def storage_node(state):
-
-    save_report(
-        state["report"]
-    )
-
-    return state
 
 def position_node(state):
 
@@ -75,10 +65,7 @@ def professor_node(state):
 
     state["professor_data"] = {
         "Research Interests": [
-            "Medical Imaging",
-            "Vision Transformers",
-            "Explainable AI",
-            "Healthcare"
+            state["professor_text"]
         ],
         "Recent Topics": [],
         "Keywords": []
@@ -99,11 +86,9 @@ def match_node(state):
 
 def professor_match_node(state):
 
-    state["professor_match"] = (
-        calculate_professor_match(
-            state["cv_data"],
-            state["professor_data"]
-        )
+    state["professor_match"] = calculate_professor_match(
+        state["cv_data"],
+        state["professor_data"]
     )
 
     return state
@@ -121,10 +106,8 @@ def gap_node(state):
 
 def recommendation_node(state):
 
-    state["recommendation"] = (
-        generate_recommendation(
-            state["gap_analysis"]
-        )
+    state["recommendation"] = generate_recommendation(
+        state["gap_analysis"]
     )
 
     return state
@@ -132,15 +115,11 @@ def recommendation_node(state):
 
 def critic_node(state):
 
-    state["critique"] = (
-        critique_application(
-            {
-                "match_score":
-                    state["match_score"],
-                "recommendation":
-                    state["recommendation"]
-            }
-        )
+    state["critique"] = critique_application(
+        {
+            "match_score": state["match_score"],
+            "recommendation": state["recommendation"]
+        }
     )
 
     return state
@@ -161,6 +140,15 @@ def report_node(state):
     return state
 
 
+def storage_node(state):
+
+    save_report(
+        state["report"]
+    )
+
+    return state
+
+
 # =========================
 # GRAPH
 # =========================
@@ -168,13 +156,31 @@ def report_node(state):
 builder = StateGraph(WorkflowState)
 
 builder.add_node("cv", cv_node)
-builder.add_node("position", position_node)
-builder.add_node("professor", professor_node)
 
-builder.add_node("match", match_node)
-builder.add_node("professor_match", professor_match_node)
+builder.add_node(
+    "position",
+    position_node
+)
 
-builder.add_node("gap", gap_node)
+builder.add_node(
+    "professor",
+    professor_node
+)
+
+builder.add_node(
+    "match",
+    match_node
+)
+
+builder.add_node(
+    "professor_match",
+    professor_match_node
+)
+
+builder.add_node(
+    "gap",
+    gap_node
+)
 
 builder.add_node(
     "recommendation",
@@ -187,18 +193,15 @@ builder.add_node(
 )
 
 builder.add_node(
+    "report",
+    report_node
+)
+
+builder.add_node(
     "storage",
     storage_node
 )
-builder.add_edge(
-    "report",
-    "storage"
-)
 
-builder.add_edge(
-    "storage",
-    END
-)
 
 # =========================
 # FLOW
@@ -248,6 +251,11 @@ builder.add_edge(
 
 builder.add_edge(
     "report",
+    "storage"
+)
+
+builder.add_edge(
+    "storage",
     END
 )
 

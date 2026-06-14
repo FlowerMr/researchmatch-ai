@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from agent.workflow_v2 import graph
+from database.history import get_reports
 
 app = FastAPI()
 
@@ -10,6 +11,10 @@ class AnalyzeRequest(BaseModel):
     job_text: str
     professor_text: str
 
+@app.get("/reports")
+def reports():
+
+    return get_reports()
 
 @app.get("/")
 def home():
